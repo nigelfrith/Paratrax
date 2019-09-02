@@ -11,26 +11,34 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.altitude.paratrax.Classes.Helper;
 import com.altitude.paratrax.Classes.Quick_Log;
 import com.altitude.paratrax.Models.Full_Logbook_Model;
 import com.altitude.paratrax.R;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 
 public class Full_Logbook_Fragment extends Fragment {
 
     View mMainView;
     DatabaseReference mDatabase;
+
+    private ProgressBar progressBar;
 
     EditText userid, fname, lname, email;
     private Button button;
@@ -90,8 +98,6 @@ public class Full_Logbook_Fragment extends Fragment {
             mParam1 = getArguments().getString(ARG_PARAM1);
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
-
-
     }
 
     @Override
@@ -100,145 +106,108 @@ public class Full_Logbook_Fragment extends Fragment {
         // Inflate the layout for this fragment
         //return inflater.inflate(R.layout.fragment_logbook_full, container, false);
         mMainView = inflater.inflate(R.layout.fragment_logbook_full, container, false);
+
+        progressBar = mMainView.findViewById(R.id.progressBar);
+
+
+        button = (Button)mMainView.findViewById(R.id.btn);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FragmentTransaction fragmentTransaction = getActivity()
+                        .getSupportFragmentManager().beginTransaction();
+                fragmentTransaction.replace(R.id.main_fragment, new Quick_Log_Fragment());
+                fragmentTransaction.commit();
+            }
+        });
+
+        //rv
         recyclerView = (RecyclerView) mMainView.findViewById(R.id.rv_logbook_list);
-
-        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        recyclerView.setHasFixedSize(true);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        //Get Logged On users info
+        final String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         String email = FirebaseAuth.getInstance().getCurrentUser().getEmail();
-
-        mDatabase = FirebaseDatabase.getInstance().getReference().child("User").child(uid);
+//
+        //get fb db ref for logbook.
+        mDatabase = FirebaseDatabase.getInstance().getReference().child("Quick_log");
         mDatabase.keepSynced(true);
-
-        recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
 
         Query query = FirebaseDatabase.getInstance()
                 .getReference()
-                .child("Quick_log").child(uid).orderByKey();
+                .child("Quick_log").orderByKey();
+
 
         FirebaseRecyclerOptions<Quick_Log> options = new FirebaseRecyclerOptions.Builder<Quick_Log>()
                 .setQuery(query, Quick_Log.class).build();
 
-        adapter = new FirebaseRecyclerAdapter<Full_Logbook_Model, ViewHolder>(options) {
+        adapter = new FirebaseRecyclerAdapter<Quick_Log, ViewHolder>(options) {
             @Override
-            protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull Full_Logbook_Model model) {
-                holder.settxtEmail("test_rva_nigelfrith@hotmail.com");
-                holder.settxtfName("firstname_nigel");
-                holder.settxtlName(model.getLname());
+            protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull Quick_Log model) {
+
+                    holder.settxtEmail(model.getEmail());
+                    holder.settxtfName(model.getFname());
+                    holder.settxtlName(model.getLname());
+                    holder.setPhone(model.getPhone());
             }
 
             @NonNull
             @Override
             public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-               View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.full_logbook_list_item, parent,false);
-               return new ViewHolder(view);
+                View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.full_logbook_list_item, parent, false);
+                return new ViewHolder(view);
             }
         };
+
+        mDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                progressBar.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        });
 
         recyclerView.setAdapter(adapter);
         return mMainView;
     }
 
-//    @Override
-//    public void onViewCreated(View view, Bundle savedInstanceState) {
-//        super.onViewCreated(view, savedInstanceState);
-//
-//        userid = view.findViewById(R.id.userid);
-//        fname = view.findViewById(R.id.fname);
-//        lname = view.findViewById(R.id.lname);
-//        email = view.findViewById(R.id.email);
-//        button = view.findViewById(R.id.btn);
-//        recyclerView = view.findViewById(R.id.list);
-//
-//        button.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//
-//                DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference().child("posts").push();
-//                Map<String, Object> map = new HashMap<>();
-//                map.put("userid", databaseReference.getKey());
-//                map.put("First Name", fname.getText().toString());
-//                map.put("Last Name", lname.getText().toString());
-//
-//                databaseReference.setValue(map);
-//            }
-//
-//        });
-//
-//        linearLayoutManager = new LinearLayoutManager(getContext());
-//        recyclerView.setLayoutManager(linearLayoutManager);
-//        recyclerView.setHasFixedSize(true);
-//        fetch();
-//
-//    }
-//
-//    private void fetch() {
-//        Query query = FirebaseDatabase.getInstance()
-//                .getReference()
-//                .child("posts");
-//
-//        FirebaseRecyclerOptions<Full_Logbook_Model> options =
-//                new FirebaseRecyclerOptions.Builder<Full_Logbook_Model>()
-//                        .setQuery(query, new SnapshotParser<Full_Logbook_Model>() {
-//                            @NonNull
-//                            @Override
-//                            public Full_Logbook_Model parseSnapshot(@NonNull DataSnapshot snapshot) {
-//                                return new Full_Logbook_Model(snapshot.child("userid").getValue().toString(),
-//                                        snapshot.child("fname").getValue().toString(),
-//                                        snapshot.child("lname").getValue().toString(),
-//                                        snapshot.child("email").getValue().toString());
-//                            }
-//                        })
-//                        .build();
-//
-//        adapter = new FirebaseRecyclerAdapter<Full_Logbook_Model, ViewHolder>(options) {
-//            @Override
-//            public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-//                View view = LayoutInflater.from(parent.getContext())
-//                        .inflate(R.layout.full_logbook_list_item, parent, false);
-//
-//                return new ViewHolder(view);
-//            }
-//
-//
-//            @Override
-//            protected void onBindViewHolder(ViewHolder holder, final int position, Full_Logbook_Model model) {
-//                holder.settxtfName(model.getFname());
-//                holder.settxtlName(model.getLname());
-//                holder.settxtEmail(model.getLname());
-//
-//                holder.root.setOnClickListener(new View.OnClickListener() {
-//                    @Override
-//                    public void onClick(View view) {
-//                        Toast.makeText(getContext(), String.valueOf(position), Toast.LENGTH_SHORT).show();
-//                    }
-//                });
-//            }
-//
-//        };
-//        recyclerView.setAdapter(adapter);
-//    }
-
-    public class ViewHolder extends RecyclerView.ViewHolder {
+    public static class ViewHolder extends RecyclerView.ViewHolder {
         public LinearLayout root;
         public TextView txtfName;
         public TextView txtlName;
         public TextView txtEmail;
 
+        View mView;
+
         public ViewHolder(View itemView) {
             super(itemView);
+            mView = itemView;
+
             root = itemView.findViewById(R.id.list_root);
             txtfName = itemView.findViewById(R.id.fname);
             txtlName = itemView.findViewById(R.id.lname);
             txtEmail = itemView.findViewById(R.id.email);
         }
 
-        public void settxtfName(String string) {
-            txtfName.setText(string);
+        public void settxtfName(String fname) {
+            txtfName.setText(fname);
         }
 
-        public void settxtlName(String string) {txtlName.setText(string);}
+        public void settxtlName(String string) {
+            txtlName.setText(string);
+        }
 
         public void settxtEmail(String string) {
             txtEmail.setText(string);
+        }
+
+        public void setPhone(String phone) {
+
+            TextView txtPhone = (TextView) mView.findViewById(R.id.phone);
+            txtPhone.setText(phone);
         }
     }
 
